@@ -4,6 +4,19 @@ import ScanProgress from './components/ScanProgress'
 import ScanResults from './components/ScanResults'
 import ScanHistory from './components/ScanHistory'
 
+export const OWASP_REFS = [
+  { id: 'LLM01:2026', name: 'Prompt Injection', desc: 'Untrusted input changes model behavior or the surrounding application flow in unintended ways.', mapped: true },
+  { id: 'LLM02:2026', name: 'Sensitive Information Disclosure', desc: 'Model output exposes confidential data such as PII, credentials, or proprietary information.', mapped: true },
+  { id: 'LLM03:2026', name: 'Excessive Agency', desc: 'An LLM-enabled system receives excessive functionality, permissions, or autonomy.', mapped: false },
+  { id: 'LLM04:2026', name: 'Supply Chain', desc: 'Third-party components, data, or models introduce integrity and provenance risks.', mapped: false },
+  { id: 'LLM05:2026', name: 'Data and Model Poisoning', desc: 'Manipulated training, fine-tuning, or retrieval data changes model behavior.', mapped: false },
+  { id: 'LLM06:2026', name: 'Unbounded Consumption', desc: 'Uncontrolled inference or resource use creates denial-of-service or cost risks.', mapped: false },
+  { id: 'LLM07:2026', name: 'Misinformation', desc: 'Models generate false or misleading information that users or systems treat as reliable.', mapped: false },
+  { id: 'LLM08:2026', name: 'Hidden Context Exposure', desc: 'Hidden, non-user-facing system instructions or operational context are extracted, inferred, or reconstructed.', mapped: true },
+  { id: 'LLM09:2026', name: 'Vector and Embedding Weaknesses', desc: 'Weaknesses in retrieval and embedding systems compromise relevant context or data.', mapped: false },
+  { id: 'LLM10:2026', name: 'Improper Output Handling', desc: 'Downstream systems fail to validate or safely handle model output.', mapped: false },
+]
+
 // ─── Shield Logo ──────────────────────────────────────────────────────────
 function ShieldLogo() {
   return (
@@ -66,9 +79,9 @@ function Nav({ view, setView }) {
           display: 'flex', alignItems: 'center', gap: 6,
         }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
-          SYSTEM ONLINE
+          LOCAL CONSOLE
         </div>
-        <a href="https://owasp.org/www-project-top-10-for-large-language-model-applications/"
+        <a href="https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/"
           target="_blank" rel="noreferrer"
           style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-dim)', textDecoration: 'none' }}>
           OWASP LLM TOP 10 ↗
@@ -80,42 +93,29 @@ function Nav({ view, setView }) {
 
 // ─── OWASP Reference Panel ─────────────────────────────────────────────────
 function OWASPRef() {
-  const refs = [
-    { id: 'LLM01:2025', name: 'Prompt Injection', desc: 'User inputs alter LLM behavior in unintended ways, potentially causing data exfiltration or unauthorized actions.', covered: true },
-    { id: 'LLM02:2025', name: 'Sensitive Information Disclosure', desc: 'LLMs inadvertently reveal confidential data including PII, credentials, or proprietary information.', covered: false },
-    { id: 'LLM03:2025', name: 'Supply Chain Vulnerabilities', desc: 'Third-party components, training datasets, or deployment infrastructure introduce risks.', covered: false },
-    { id: 'LLM04:2025', name: 'Data and Model Poisoning', desc: 'Manipulation of training data to introduce vulnerabilities or backdoors into the model.', covered: false },
-    { id: 'LLM05:2025', name: 'Insecure Output Handling', desc: 'LLM outputs not validated before passing to downstream components, enabling injection attacks.', covered: false },
-    { id: 'LLM06:2025', name: 'Excessive Agency', desc: 'LLMs with overly broad permissions take unintended actions with real-world consequences.', covered: true },
-    { id: 'LLM07:2025', name: 'System Prompt Leakage', desc: 'System prompt contents exposed to users, revealing business logic or security measures.', covered: true },
-    { id: 'LLM08:2025', name: 'Vector and Embedding Weaknesses', desc: 'Exploitation of RAG pipelines via embedding manipulation or retrieval poisoning.', covered: false },
-    { id: 'LLM09:2025', name: 'Misinformation', desc: 'LLMs generating plausible but factually incorrect content presented as authoritative.', covered: false },
-    { id: 'LLM10:2025', name: 'Unbounded Consumption', desc: 'Resource exhaustion attacks causing denial of service or excessive API costs.', covered: false },
-  ]
-
   return (
     <div style={{ maxWidth: 800, width: '100%', animation: 'fadeIn 0.3s ease' }}>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)', letterSpacing: '0.2em', marginBottom: 8 }}>
           // REFERENCE
         </div>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700 }}>OWASP LLM Top 10 — 2025</h2>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700 }}>OWASP GenAI LLM Top 10 — 2026</h2>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.5 }}>
-          PromptShield currently covers the attack surface categories marked below. The attack library grows with every release.
+          PromptShield maps selected test cases to the references marked below. This is not comprehensive OWASP coverage or certification.
         </p>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {refs.map(ref => (
+        {OWASP_REFS.map(ref => (
           <div key={ref.id} style={{
             background: 'var(--bg-surface)', border: '1px solid var(--border)',
-            borderLeft: `3px solid ${ref.covered ? 'var(--cyan)' : 'var(--border)'}`,
+            borderLeft: `3px solid ${ref.mapped ? 'var(--cyan)' : 'var(--border)'}`,
             borderRadius: 'var(--radius)', padding: '14px 18px',
-            opacity: ref.covered ? 1 : 0.6,
+            opacity: ref.mapped ? 1 : 0.6,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4 }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: ref.covered ? 'var(--cyan)' : 'var(--text-dim)' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: ref.mapped ? 'var(--cyan)' : 'var(--text-dim)' }}>
                     {ref.id}
                   </span>
                   <strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>{ref.name}</strong>
@@ -125,11 +125,11 @@ function OWASPRef() {
               <span style={{
                 fontFamily: 'var(--font-mono)', fontSize: 9, flexShrink: 0,
                 padding: '3px 8px', borderRadius: 4,
-                background: ref.covered ? 'var(--cyan-glow)' : 'var(--bg-elevated)',
-                color: ref.covered ? 'var(--cyan)' : 'var(--text-dim)',
-                border: `1px solid ${ref.covered ? 'var(--cyan-dim)' : 'var(--border)'}`,
+                background: ref.mapped ? 'var(--cyan-glow)' : 'var(--bg-elevated)',
+                color: ref.mapped ? 'var(--cyan)' : 'var(--text-dim)',
+                border: `1px solid ${ref.mapped ? 'var(--cyan-dim)' : 'var(--border)'}`,
               }}>
-                {ref.covered ? '✓ COVERED' : 'ROADMAP'}
+                {ref.mapped ? 'TEST CASES' : 'NOT TESTED'}
               </span>
             </div>
           </div>
@@ -140,6 +140,10 @@ function OWASPRef() {
 }
 
 // ─── Root App ─────────────────────────────────────────────────────────────
+export function viewForScanStatus(status) {
+  return status === 'completed' ? 'results' : 'progress'
+}
+
 export default function App() {
   const [view, setView] = useState('history') // 'history' | 'new' | 'progress' | 'results' | 'docs'
   const [activeScanId, setActiveScanId] = useState(null)
@@ -155,7 +159,7 @@ export default function App() {
 
   const handleSelectScan = (scanId, status) => {
     setActiveScanId(scanId)
-    setView(status === 'running' ? 'progress' : 'results')
+    setView(viewForScanStatus(status))
   }
 
   const handleNewScan = () => {
@@ -192,7 +196,7 @@ export default function App() {
           <NewScanForm onScanCreated={handleScanCreated} />
         )}
         {view === 'progress' && activeScanId && (
-          <ScanProgress scanId={activeScanId} onComplete={handleScanComplete} />
+          <ScanProgress scanId={activeScanId} onComplete={handleScanComplete} onNewScan={handleNewScan} />
         )}
         {view === 'results' && activeScanId && (
           <ScanResults scanId={activeScanId} onNewScan={handleNewScan} />
@@ -206,7 +210,7 @@ export default function App() {
         background: 'var(--bg-base)',
       }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-dim)' }}>
-          PROMPTSHIELD v1.0.0 &nbsp;·&nbsp; OWASP LLM TOP 10 ALIGNED &nbsp;·&nbsp; Built for developers
+          PROMPTSHIELD v1.1.0 &nbsp;·&nbsp; SELECTED OWASP 2026 REFERENCES &nbsp;·&nbsp; Built for developers
         </span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-dim)' }}>
           promptshield.dev

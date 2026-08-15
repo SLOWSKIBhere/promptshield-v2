@@ -3,6 +3,13 @@ import { Button, CategoryPill, TermLabel } from './ui'
 import { api } from '../api'
 
 const ALL_CATEGORIES = ['prompt_injection', 'data_extraction', 'jailbreak', 'role_confusion', 'multi_turn']
+const ATTACK_COUNTS = {
+  prompt_injection: 15,
+  data_extraction: 10,
+  jailbreak: 10,
+  role_confusion: 7,
+  multi_turn: 8,
+}
 const OFFLINE_FIXTURE_URL = import.meta.env.VITE_OFFLINE_FIXTURE === 'true'
   ? 'http://127.0.0.1:9000/chat'
   : null
@@ -123,8 +130,8 @@ export default function NewScanForm({ onScanCreated }) {
           Configure Target
         </h2>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.5 }}>
-          Provide your AI feature's system prompt. PromptShield will simulate {' '}
-          <span style={{ color: 'var(--cyan)' }}>50+ adversarial attacks</span> across OWASP LLM Top 10 categories.
+          Provide your AI feature's system prompt. PromptShield runs up to {' '}
+          <span style={{ color: 'var(--cyan)' }}>50 adversarial test cases</span> across five internal attack families mapped to selected OWASP risks.
         </p>
       </div>
 
@@ -210,7 +217,7 @@ export default function NewScanForm({ onScanCreated }) {
                 onBlur={e => e.target.style.borderColor = 'var(--border)'}
               />
             </Field>
-            <Field label="Bearer Token" hint="Authorization header value (optional)">
+            <Field label="Bearer Token" hint="Optional; sent only to HTTPS targets and never stored directly">
               <input value={form.api_key} onChange={set('api_key')} type="password"
                 placeholder="sk-..."
                 style={inputStyle}
@@ -223,7 +230,7 @@ export default function NewScanForm({ onScanCreated }) {
 
         {/* Attack Categories */}
         <div>
-          <TermLabel>Attack Categories</TermLabel>
+          <TermLabel>Attack Families</TermLabel>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {ALL_CATEGORIES.map(cat => (
               <CategoryPill
@@ -234,7 +241,7 @@ export default function NewScanForm({ onScanCreated }) {
             ))}
           </div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', marginTop: 8 }}>
-            ~{form.categories.length * 10} attack vectors will be simulated
+            {form.categories.reduce((total, category) => total + ATTACK_COUNTS[category], 0)} test cases will run
           </div>
         </div>
 

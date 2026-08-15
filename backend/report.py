@@ -7,7 +7,7 @@ Fixes applied:
   CODE:   escape_html() moved to top of file for clarity
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from models import ScanResult
 
 
@@ -45,15 +45,15 @@ _GRADE_COLOR = {
 
 def generate_html_report(scan: ScanResult) -> str:
     exploited = [f for f in scan.findings if f.is_exploited]
-    safe_count = len(scan.findings) - len(exploited)
+    not_flagged_count = len(scan.findings) - len(exploited)
     critical_count = sum(1 for f in exploited if _sev(f) == "critical")
     high_count = sum(1 for f in exploited if _sev(f) == "high")
 
     grade_color = _GRADE_COLOR.get(scan.letter_grade, "#8b8fbe")
-    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     findings_html = _build_findings_html(exploited, scan.findings) if scan.findings else (
-        '<div class="no-findings">✅ No vulnerabilities detected. All attack vectors blocked.</div>'
+        '<div class="no-findings">No cases were flagged by this scan corpus.</div>'
     )
 
     return f"""<!DOCTYPE html>
@@ -114,21 +114,22 @@ code{{display:block;background:#020617;border:1px solid #1a1c35;border-radius:4p
     <div class="stats">
       <div class="stat"><div class="stat-num" style="color:#ff2d55">{critical_count}</div><div class="stat-label">Critical</div></div>
       <div class="stat"><div class="stat-num" style="color:#ff6b35">{high_count}</div><div class="stat-label">High</div></div>
-      <div class="stat"><div class="stat-num" style="color:#00ff88">{safe_count}</div><div class="stat-label">Blocked</div></div>
+      <div class="stat"><div class="stat-num" style="color:#00ff88">{not_flagged_count}</div><div class="stat-label">Not flagged</div></div>
       <div class="stat"><div class="stat-num" style="color:#8b8fbe">{len(scan.findings)}</div><div class="stat-label">Total</div></div>
     </div>
   </div>
 
   <div class="section-label">Executive Summary</div>
   <div class="summary-box">{_escape(scan.summary or 'No summary available.')}</div>
+  <div class="summary-box">Automated scan result only. The grade reflects this configured corpus and judge; it is not a security certification or a substitute for manual review.</div>
 
   <div class="section-label">System Prompt Tested</div>
   <div class="prompt-box">{_escape(scan.system_prompt_preview)}</div>
 
-  <div class="section-label">Findings — {len(exploited)} exploit{'s' if len(exploited) != 1 else ''} of {len(scan.findings)} attacks</div>
+  <div class="section-label">Evaluation — {len(exploited)} flagged case{'s' if len(exploited) != 1 else ''} of {len(scan.findings)} tests</div>
   {findings_html}
 
-  <div class="footer">PromptShield v1.1.0 &nbsp;·&nbsp; OWASP LLM Top 10 Aligned &nbsp;·&nbsp; promptshield.dev</div>
+  <div class="footer">PromptShield v1.1.0 &nbsp;·&nbsp; Selected OWASP GenAI LLM Top 10 (2026) references &nbsp;·&nbsp; promptshield.dev</div>
 </div>
 </body>
 </html>"""
@@ -141,7 +142,7 @@ def _sev(finding) -> str:
 
 def _build_findings_html(exploited, all_findings) -> str:
     if not exploited:
-        return '<div class="no-findings">✅ No vulnerabilities detected. All attack vectors successfully blocked.</div>'
+        return '<div class="no-findings">No cases were flagged by this scan corpus.</div>'
 
     parts = []
     for f in all_findings:
@@ -178,7 +179,7 @@ def _build_findings_html(exploited, all_findings) -> str:
 <div class="finding safe-finding" style="border-left:3px solid #1a1c35">
   <div class="finding-header">
     <div class="finding-title">
-      <span class="badge" style="background:#0d2818;color:#4ade80;border:1px solid #166534">BLOCKED</span>
+      <span class="badge" style="background:#0d2818;color:#4ade80;border:1px solid #166534">NOT FLAGGED</span>
       <strong>{_escape(f.attack_name)}</strong>
       <span class="owasp">{_escape(f.owasp_ref)}</span>
     </div>

@@ -21,6 +21,8 @@ from typing import List
 
 import anthropic
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Response, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -35,7 +37,7 @@ from database import (
     init_db, save_scan, get_scan, list_scans, delete_scan as db_delete_scan,
     mark_orphaned_scans_interrupted,
 )
-from engine import TargetCallError, run_scan
+from engine import TargetCallError, redact_target_secret, run_scan
 from report import generate_html_report
 from config import settings
 
@@ -66,7 +68,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="PromptShield API",
-    description="LLM Security Scanner — OWASP LLM Top 10",
+    description="LLM adversarial test scanner with selected OWASP 2026 references",
     version="1.1.0",
     lifespan=lifespan,
     docs_url="/docs",
@@ -87,6 +89,29 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Return useful validation details without reflecting submitted values."""
+    del request
+    sanitized_errors = []
+    for error in exc.errors():
+        location = error.get("loc", ())
+        message = (
+            "Invalid target API key"
+            if "api_key" in location
+            else error.get("msg", "Invalid request value")
+        )
+        sanitized_errors.append({
+            "type": error.get("type", "value_error"),
+            "loc": location,
+            "msg": message,
+        })
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": sanitized_errors}),
+    )
 
 
 # ─── API Key Auth Middleware ──────────────────────────────────────────────────
@@ -114,7 +139,10 @@ async def api_key_middleware(request: Request, call_next):
 def _get_anthropic_client() -> anthropic.AsyncAnthropic | None:
     key = settings.anthropic_api_key
     if key:
-        return anthropic.AsyncAnthropic(api_key=key)
+        return anthropic.AsyncAnthropic(
+            api_key=key,
+            timeout=settings.provider_timeout_seconds,
+        )
     return None
 
 
@@ -123,7 +151,10 @@ def _get_openai_client(user_api_key: str | None = None):
         return None
     key = user_api_key or settings.openai_api_key
     if key:
-        return openai_lib.AsyncOpenAI(api_key=key)
+        return openai_lib.AsyncOpenAI(
+            api_key=key,
+            timeout=settings.provider_timeout_seconds,
+        )
     return None
 
 
@@ -133,36 +164,13 @@ def _get_groq_client():
     return openai_lib.AsyncOpenAI(
         api_key=settings.groq_api_key,
         base_url=settings.groq_base_url,
+        timeout=settings.provider_timeout_seconds,
     )
 
 
 # ─── Background Scan Worker ──────────────────────────────────────────────────
 
 async def _run_scan_background(scan_id: str, target: ScanTarget) -> None:
-    anthropic_client = _get_anthropic_client()
-    openai_client = _get_openai_client()
-    groq_client = _get_groq_client()
-
-    selected_target_provider = settings.target_provider
-    if selected_target_provider == "auto":
-        selected_target_provider = (
-            "anthropic" if anthropic_client
-            else "openai" if openai_client
-            else "groq"
-        )
-
-    if not target.endpoint_url and not anthropic_client and not openai_client and not groq_client:
-        scan = get_scan(scan_id)
-        if scan:
-            scan.status = ScanStatus.FAILED
-            scan.summary = "No AI provider configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GROQ_API_KEY."
-            scan.failure_reason = scan.summary
-            scan.current_attack_name = "Failed"
-            scan.completed_at = datetime.now(timezone.utc)
-            save_scan(scan)
-        logger.error(f"Scan {scan_id}: no AI provider configured")
-        return
-
     # BUG-07 FIX: Progress stored in DB, not in-memory dict
     # The progress endpoint now reads current attack count from the DB directly.
     async def progress_callback(current: int, total: int, attack_name: str) -> None:
@@ -174,6 +182,30 @@ async def _run_scan_background(scan_id: str, target: ScanTarget) -> None:
             save_scan(scan)
 
     try:
+        anthropic_client = _get_anthropic_client()
+        openai_client = _get_openai_client()
+        groq_client = _get_groq_client()
+
+        selected_target_provider = settings.target_provider
+        if selected_target_provider == "auto":
+            selected_target_provider = (
+                "anthropic" if anthropic_client
+                else "openai" if openai_client
+                else "groq"
+            )
+
+        if not target.endpoint_url and not anthropic_client and not openai_client and not groq_client:
+            scan = get_scan(scan_id)
+            if scan:
+                scan.status = ScanStatus.FAILED
+                scan.summary = "No AI provider configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GROQ_API_KEY."
+                scan.failure_reason = scan.summary
+                scan.current_attack_name = "Failed"
+                scan.completed_at = datetime.now(timezone.utc)
+                save_scan(scan)
+            logger.error(f"Scan {scan_id}: no AI provider configured")
+            return
+
         logger.info(f"Scan {scan_id}: starting ({len(target.categories or [])} categories)")
         results, score, grade, summary = await run_scan(
             scan_id=scan_id,
@@ -217,8 +249,8 @@ async def _run_scan_background(scan_id: str, target: ScanTarget) -> None:
         )
 
     except Exception as e:
-        # BUG-09 FIX: Log with full traceback — visible in Railway/Render logs
-        logger.exception(f"Scan {scan_id}: FAILED with exception")
+        # Exception messages can contain provider or transport data; log only the type.
+        logger.error("Scan %s: failed with %s", scan_id, type(e).__name__)
         scan = get_scan(scan_id)
         if scan:
             scan.status = ScanStatus.FAILED
@@ -259,17 +291,25 @@ async def create_scan(target: ScanTarget, background_tasks: BackgroundTasks):
     scan_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
 
+    # Treat the submitted target credential as sensitive wherever it appears,
+    # including accidental copies in user-visible metadata.
+    redacted_name = redact_target_secret(target.scan_name, target.api_key)
+    redacted_description = redact_target_secret(target.feature_description, target.api_key)
+    redacted_prompt = redact_target_secret(target.system_prompt, target.api_key)
+
     scan = ScanResult(
         scan_id=scan_id,
-        scan_name=target.scan_name,
-        feature_description=target.feature_description,
-        system_prompt_preview=target.system_prompt[:300] + ("..." if len(target.system_prompt) > 300 else ""),
+        scan_name=redacted_name,
+        feature_description=redacted_description,
+        system_prompt_preview=(
+            redacted_prompt[:300] + ("..." if len(redacted_prompt) > 300 else "")
+        ),
         started_at=now,
         status=ScanStatus.RUNNING,
     )
     save_scan(scan)
     background_tasks.add_task(_run_scan_background, scan_id, target)
-    logger.info(f"Scan {scan_id} created: '{target.scan_name}'")
+    logger.info("Scan %s created", scan_id)
     return scan
 
 

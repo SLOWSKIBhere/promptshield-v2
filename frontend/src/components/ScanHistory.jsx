@@ -54,20 +54,18 @@ export default function ScanHistory({ onSelectScan, onNewScan }) {
         {scans.map(scan => (
           <div
             key={scan.scan_id}
-            onClick={() => scan.status !== 'failed' && onSelectScan(scan.scan_id, scan.status)}
+            onClick={() => onSelectScan(scan.scan_id, scan.status)}
             style={{
               background: 'var(--bg-surface)', border: '1px solid var(--border)',
               borderRadius: 'var(--radius)', padding: '16px 20px',
-              cursor: scan.status === 'failed' ? 'default' : 'pointer',
+              cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 16,
               transition: 'border-color 0.15s, background 0.15s',
               flexWrap: 'wrap',
             }}
             onMouseEnter={e => {
-              if (scan.status !== 'failed') {
-                e.currentTarget.style.borderColor = 'var(--border-bright)'
-                e.currentTarget.style.background = 'var(--bg-elevated)'
-              }
+              e.currentTarget.style.borderColor = 'var(--border-bright)'
+              e.currentTarget.style.background = 'var(--bg-elevated)'
             }}
             onMouseLeave={e => {
               e.currentTarget.style.borderColor = 'var(--border)'
@@ -96,7 +94,7 @@ export default function ScanHistory({ onSelectScan, onNewScan }) {
               <div style={{ display: 'flex', gap: 16, fontFamily: 'var(--font-mono)', fontSize: 11, flexShrink: 0 }}>
                 <span style={{ color: 'var(--red)' }}>{scan.critical_count} CRIT</span>
                 <span style={{ color: 'var(--orange)' }}>{scan.high_count} HIGH</span>
-                <span style={{ color: 'var(--green)' }}>{scan.total_attacks - scan.exploited_count} SAFE</span>
+                <span style={{ color: 'var(--green)' }}>{scan.total_attacks - scan.exploited_count} NOT FLAGGED</span>
               </div>
             )}
             
@@ -106,6 +104,10 @@ export default function ScanHistory({ onSelectScan, onNewScan }) {
             
             {scan.status === 'failed' && (
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--red)' }}>FAILED</span>
+            )}
+
+            {scan.status === 'interrupted' && (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--orange)' }}>INTERRUPTED</span>
             )}
             
             <button

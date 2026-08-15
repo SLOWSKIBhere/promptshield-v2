@@ -24,7 +24,7 @@ export const api = {
   
   getScan: (id) => request(`/scans/${id}`),
   
-  getProgress: (id) => request(`/scans/${id}/progress`),
+  getProgress: (id, options = {}) => request(`/scans/${id}/progress`, options),
   
   getReportUrl: (id) => `${BASE}/scans/${id}/report`,
   

@@ -43,13 +43,20 @@ class ScanTarget(BaseModel):
     model_name: Optional[str] = Field(None, max_length=100)
     feature_description: str = Field(..., min_length=5, max_length=1_000)
     scan_name: str = Field(..., min_length=3, max_length=200)
-    categories: List[AttackCategory] = Field(default_factory=_default_categories)
+    categories: List[AttackCategory] = Field(
+        default_factory=_default_categories,
+        max_length=len(AttackCategory),
+    )
 
     @field_validator("categories")
     @classmethod
-    def categories_must_not_be_empty(cls, value: List[AttackCategory]) -> List[AttackCategory]:
+    def categories_must_be_unique_and_nonempty(
+        cls, value: List[AttackCategory]
+    ) -> List[AttackCategory]:
         if not value:
             raise ValueError("Select at least one attack category")
+        if len(set(value)) != len(value):
+            raise ValueError("Attack categories must not contain duplicates")
         return value
 
 
