@@ -1,0 +1,126 @@
+:root {
+  --bg-void: #050508;
+  --bg-base: #08090f;
+  --bg-surface: #0d0e1a;
+  --bg-elevated: #111228;
+  --bg-hover: #161830;
+
+  --border: #1a1c35;
+  --border-bright: #252848;
+  
+  --text-primary: #e8eaf6;
+  --text-secondary: #8b8fbe;
+  --text-muted: #454870;
+  --text-dim: #282b4a;
+  
+  --cyan: #00e5ff;
+  --cyan-dim: #00b8cc;
+  --cyan-glow: rgba(0, 229, 255, 0.15);
+  
+  --green: #00ff88;
+  --green-dim: #00cc6a;
+  --green-glow: rgba(0, 255, 136, 0.12);
+  
+  --red: #ff2d55;
+  --red-dim: #cc2444;
+  --red-glow: rgba(255, 45, 85, 0.15);
+  
+  --orange: #ff6b35;
+  --yellow: #ffd60a;
+  --purple: #bf5af2;
+
+  --font-mono: 'Space Mono', 'Courier New', monospace;
+  --font-display: 'Syne', sans-serif;
+  
+  --radius: 6px;
+  --radius-lg: 10px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-display);
+  background-color: var(--bg-void);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle scanline overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-void); }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Selection */
+::selection { background: var(--cyan-glow); color: var(--cyan); }
+
+/* Focus */
+:focus-visible {
+  outline: 1.5px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-cyan {
+  0%, 100% { box-shadow: 0 0 0 0 var(--cyan-glow); }
+  50% { box-shadow: 0 0 12px 4px var(--cyan-glow); }
+}
+
+@keyframes scan-line {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes progress-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+/* Code blocks */
+pre, code {
+  font-family: var(--font-mono);
+}

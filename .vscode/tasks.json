@@ -1,0 +1,111 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Backend: Create venv and install dependencies",
+      "type": "shell",
+      "command": "if (!(Test-Path .venv)) { python -m venv .venv }; .venv\\Scripts\\python.exe -m pip install -r requirements.txt",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: Start",
+      "type": "shell",
+      "command": ".venv\\Scripts\\python.exe -m uvicorn main:app --reload --host 127.0.0.1 --port 8000",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "uvicorn",
+        "pattern": { "regexp": "^(?!)$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^INFO:.*Started server process",
+          "endsPattern": "^INFO:.*Uvicorn running on"
+        }
+      }
+    },
+    {
+      "label": "Frontend: Install dependencies",
+      "type": "shell",
+      "command": "npm install",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend: Start",
+      "type": "shell",
+      "command": "npm run dev -- --host 127.0.0.1 --port 5173",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^(?!)$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "^\\s*➜\\s+Local:\\s+http://127\\.0\\.0\\.1:5173/"
+        }
+      }
+    },
+    {
+      "label": "Fixture Target: Start (development only)",
+      "type": "shell",
+      "command": ".venv\\Scripts\\python.exe -m uvicorn fixture_target:app --app-dir tests --host 127.0.0.1 --port 9000",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "uvicorn",
+        "pattern": { "regexp": "^(?!)$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^INFO:.*Started server process",
+          "endsPattern": "^INFO:.*Uvicorn running on"
+        }
+      }
+    },
+    {
+      "label": "Backend: Tests",
+      "type": "shell",
+      "command": ".venv\\Scripts\\python.exe -m pytest tests",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend: Tests",
+      "type": "shell",
+      "command": "npm test",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Tests: All",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Backend: Tests", "Frontend: Tests"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: Build check",
+      "type": "shell",
+      "command": ".venv\\Scripts\\python.exe -m compileall -q .",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend: Build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build: All",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Backend: Build check", "Frontend: Build"],
+      "problemMatcher": []
+    }
+  ]
+}

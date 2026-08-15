@@ -1,0 +1,81 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: FastAPI",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env",
+      "justMyCode": true,
+      "subProcess": true
+    },
+    {
+      "name": "Frontend: Vite",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev -- --host 127.0.0.1 --port 5173",
+      "cwd": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "Fixture Target: Offline",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "module": "uvicorn",
+      "args": ["fixture_target:app", "--app-dir", "tests", "--host", "127.0.0.1", "--port", "9000"],
+      "cwd": "${workspaceFolder}/backend",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Backend: FastAPI (Offline)",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "module": "uvicorn",
+      "args": ["main:app", "--host", "127.0.0.1", "--port", "8000"],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "ALLOW_PRIVATE_TARGETS": "true",
+        "TARGET_PROVIDER": "auto",
+        "JUDGE_PROVIDER": "heuristic",
+        "DATABASE_PATH": "promptshield-offline.db",
+        "PROMPTSHIELD_API_KEY": "",
+        "ANTHROPIC_API_KEY": "",
+        "OPENAI_API_KEY": "",
+        "GROQ_API_KEY": ""
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Frontend: Vite (Offline)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev -- --host 127.0.0.1 --port 5173",
+      "cwd": "${workspaceFolder}/frontend",
+      "env": {
+        "VITE_OFFLINE_FIXTURE": "true"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "PromptShield: Full Stack",
+      "configurations": ["Backend: FastAPI", "Frontend: Vite"],
+      "stopAll": true
+    },
+    {
+      "name": "PromptShield: Offline Full Stack",
+      "configurations": [
+        "Fixture Target: Offline",
+        "Backend: FastAPI (Offline)",
+        "Frontend: Vite (Offline)"
+      ],
+      "stopAll": true
+    }
+  ]
+}

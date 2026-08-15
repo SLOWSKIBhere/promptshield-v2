@@ -1,0 +1,15 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.8.2
+pydantic-settings==2.4.0
+anthropic==0.36.2
+openai==1.51.0
+httpx==0.27.2
+pyyaml==6.0.2
+reportlab==4.2.2
+python-multipart==0.0.12
+pytest==8.3.3
+pytest-asyncio==0.24.0
+
+# Optional - uncomment if using OpenAI
+# openai==1.51.0
