@@ -7,6 +7,7 @@
  *   - Added consecutive error counter — stops polling after 5 errors
  *   - Guarded against onComplete firing after unmount
  *   - Added 404 / failed scan handling
+ *   - Uses single-flight polling with request timeout and unmount cancellation
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react'
@@ -14,6 +15,7 @@ import { ProgressBar, Spinner, TermLabel, Button } from './ui'
 import { api } from '../api'
 
 const POLL_INTERVAL_MS = 1200
+const POLL_REQUEST_TIMEOUT_MS = 10_000
 const MAX_CONSECUTIVE_ERRORS = 5
 
 export default function ScanProgress({ scanId, onComplete, onNewScan }) {
@@ -25,14 +27,15 @@ export default function ScanProgress({ scanId, onComplete, onNewScan }) {
   })
   const [log, setLog] = useState([
     '[INIT] PromptShield attack engine starting...',
-    '[INIT] Loading OWASP LLM Top 10 attack library...',
+    '[INIT] Loading PromptShield test corpus and OWASP reference mappings...',
   ])
   const [scanFailed, setScanFailed] = useState(false)
+  const [terminalStatus, setTerminalStatus] = useState(null)
   const [failReason, setFailReason] = useState('')
 
-  const intervalRef = useRef(null)
+  const timeoutRef = useRef(null)
+  const abortRef = useRef(null)
   const logRef = useRef(null)
-  const mountedRef = useRef(true)
   const errorCountRef = useRef(0)
   const startTimeRef = useRef(Date.now())
   const completeFiredRef = useRef(false)
@@ -43,15 +46,23 @@ export default function ScanProgress({ scanId, onComplete, onNewScan }) {
   }, [])
 
   useEffect(() => {
-    mountedRef.current = true
+    let cancelled = false
 
     const poll = async () => {
-      if (!mountedRef.current) return
+      if (cancelled) return
+
+      let shouldContinue = true
+      const controller = new AbortController()
+      abortRef.current = controller
+      const requestTimeout = setTimeout(
+        () => controller.abort(),
+        POLL_REQUEST_TIMEOUT_MS,
+      )
 
       try {
-        const data = await api.getProgress(scanId)
+        const data = await api.getProgress(scanId, { signal: controller.signal })
 
-        if (!mountedRef.current) return
+        if (cancelled) return
 
         errorCountRef.current = 0 // reset on success
         setProgress(data)
@@ -70,40 +81,50 @@ export default function ScanProgress({ scanId, onComplete, onNewScan }) {
         }
 
         if (data.status === 'completed') {
-          clearInterval(intervalRef.current)
+          shouldContinue = false
           appendLog('[DONE] ✓ Scan complete — generating report...')
           if (!completeFiredRef.current) {
             completeFiredRef.current = true
             setTimeout(() => {
-              if (mountedRef.current) onComplete()
+              if (!cancelled) onComplete()
             }, 1000)
           }
         } else if (data.status === 'failed' || data.status === 'interrupted') {
-          clearInterval(intervalRef.current)
-          appendLog('[ERR] ✗ Scan failed — check API key and server logs')
+          shouldContinue = false
+          appendLog(data.status === 'interrupted'
+            ? '[ERR] Scan interrupted before completion'
+            : '[ERR] Scan failed — check configuration and server logs')
           setScanFailed(true)
+          setTerminalStatus(data.status)
           setFailReason(data.failure_reason || data.current_attack || 'Unknown error — check backend logs')
         }
       } catch (err) {
-        if (!mountedRef.current) return
+        if (cancelled) return
         errorCountRef.current += 1
         appendLog(`[ERR] Poll error (${errorCountRef.current}/${MAX_CONSECUTIVE_ERRORS}): ${err.message}`)
 
         if (errorCountRef.current >= MAX_CONSECUTIVE_ERRORS) {
-          clearInterval(intervalRef.current)
+          shouldContinue = false
           setScanFailed(true)
+          setTerminalStatus('failed')
           setFailReason(`Lost connection to server after ${MAX_CONSECUTIVE_ERRORS} retries`)
           appendLog('[ERR] ✗ Stopped polling — too many consecutive errors')
+        }
+      } finally {
+        clearTimeout(requestTimeout)
+        if (abortRef.current === controller) abortRef.current = null
+        if (shouldContinue && !cancelled) {
+          timeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS)
         }
       }
     }
 
     poll()
-    intervalRef.current = setInterval(poll, POLL_INTERVAL_MS)
 
     return () => {
-      mountedRef.current = false
-      clearInterval(intervalRef.current)
+      cancelled = true
+      clearTimeout(timeoutRef.current)
+      abortRef.current?.abort()
     }
   }, [scanId, appendLog, onComplete])
 
@@ -133,10 +154,10 @@ export default function ScanProgress({ scanId, onComplete, onNewScan }) {
         maxWidth: 720, width: '100%',
       }}>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--red)', letterSpacing: '0.2em', marginBottom: 8 }}>
-          // SCAN FAILED
+          // {terminalStatus === 'interrupted' ? 'SCAN INTERRUPTED' : 'SCAN FAILED'}
         </div>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--red)', marginBottom: 12 }}>
-          Scan could not complete
+          {terminalStatus === 'interrupted' ? 'Scan was interrupted' : 'Scan could not complete'}
         </h2>
         <div style={{
           background: 'var(--red-glow)', border: '1px solid var(--red-dim)',
@@ -146,8 +167,7 @@ export default function ScanProgress({ scanId, onComplete, onNewScan }) {
           {failReason}
         </div>
         <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.6 }}>
-          Common causes: missing <code style={{ fontFamily: 'var(--font-mono)', background: 'var(--bg-void)', padding: '1px 5px', borderRadius: 3 }}>ANTHROPIC_API_KEY</code> env var,
-          invalid API key, or rate limit hit. Check the Backend: FastAPI terminal in VS Code.
+          Review the reason above and the Backend: FastAPI terminal in VS Code. Interrupted scans can occur after a backend restart.
         </div>
         <Button onClick={onNewScan}>+ TRY AGAIN</Button>
 
@@ -231,7 +251,7 @@ export default function ScanProgress({ scanId, onComplete, onNewScan }) {
       </div>
 
       <div style={{ marginTop: 14, fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-        Each attack makes 2 LLM calls (target + judge). A full 50-attack scan takes ~2-4 minutes.
+        Each case makes one target call and, unless heuristic judging is selected, one external judge call. Runtime and provider cost vary.
       </div>
     </div>
   )

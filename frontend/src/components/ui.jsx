@@ -180,7 +180,7 @@ export function CategoryPill({ category, active, onClick }) {
     data_extraction: 'Data Extraction',
     jailbreak: 'Jailbreak',
     role_confusion: 'Role Confusion',
-    multi_turn: 'Multi-Turn',
+    multi_turn: 'Conversation Claims',
   }
   return (
     <button onClick={onClick} style={{
@@ -218,6 +218,7 @@ export function StatusDot({ status }) {
     running:   { color: 'var(--cyan)', pulse: true },
     completed: { color: 'var(--green)', pulse: false },
     failed:    { color: 'var(--red)', pulse: false },
+    interrupted: { color: 'var(--orange)', pulse: false },
   }
   const c = config[status] || { color: 'var(--text-muted)', pulse: false }
   return (

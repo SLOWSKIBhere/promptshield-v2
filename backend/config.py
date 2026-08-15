@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,7 +37,8 @@ class Settings(BaseSettings):
     target_provider: Literal["auto", "anthropic", "openai", "groq"] = "auto"
     judge_provider: Literal["auto", "anthropic", "openai", "groq", "heuristic"] = "auto"
     allow_private_targets: bool = False
-    target_timeout_seconds: float = 30.0
+    target_timeout_seconds: float = Field(default=30.0, gt=0, le=300)
+    provider_timeout_seconds: float = Field(default=60.0, gt=0, le=600)
 
     @property
     def cors_origins(self) -> list[str]:

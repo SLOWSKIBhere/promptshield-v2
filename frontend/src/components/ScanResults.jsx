@@ -2,12 +2,17 @@ import React, { useState, useEffect } from 'react'
 import { GradeCircle, SeverityBadge, StatCard, TermLabel, Button, CodeBlock, StatusDot } from './ui'
 import { api } from '../api'
 
+export const EVALUATION_DISCLAIMER = (
+  'Automated evaluation signal only. The score and grade apply to this configured corpus and judge; ' +
+  'they are not proof or certification that the target is secure.'
+)
+
 const CATEGORY_LABELS = {
   prompt_injection: 'Prompt Injection',
   data_extraction: 'Data Extraction',
   jailbreak: 'Jailbreak',
   role_confusion: 'Role Confusion',
-  multi_turn: 'Multi-Turn',
+  multi_turn: 'Conversation Claims',
 }
 
 export default function ScanResults({ scanId, onNewScan }) {
@@ -47,7 +52,7 @@ export default function ScanResults({ scanId, onNewScan }) {
   const criticalCount = exploited.filter(f => f.severity === 'critical').length
   const highCount = exploited.filter(f => f.severity === 'high').length
   const mediumCount = exploited.filter(f => f.severity === 'medium').length
-  const safeCount = scan.findings.length - exploited.length
+  const notFlaggedCount = scan.findings.length - exploited.length
 
   const filtered = scan.findings.filter(f => {
     if (filter === 'all') return true
@@ -92,7 +97,7 @@ export default function ScanResults({ scanId, onNewScan }) {
           <StatCard label="Critical" value={criticalCount} color="var(--red)" />
           <StatCard label="High" value={highCount} color="var(--orange)" />
           <StatCard label="Medium" value={mediumCount} color="var(--yellow)" />
-          <StatCard label="Blocked" value={safeCount} color="var(--green)" />
+          <StatCard label="Not flagged" value={notFlaggedCount} color="var(--green)" />
         </div>
       </div>
 
@@ -108,6 +113,14 @@ export default function ScanResults({ scanId, onNewScan }) {
         </div>
       )}
 
+      <div style={{
+        background: 'var(--bg-surface)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 24,
+        fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.6,
+      }}>
+        {EVALUATION_DISCLAIMER}
+      </div>
+
       {/* Findings */}
       <div style={{ display: 'flex', gap: 20 }}>
         {/* Filter sidebar */}
@@ -116,7 +129,7 @@ export default function ScanResults({ scanId, onNewScan }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {[
               { key: 'all', label: 'All Findings', count: scan.findings.length },
-              { key: 'exploited', label: 'Exploited Only', count: exploited.length },
+              { key: 'exploited', label: 'Flagged Only', count: exploited.length },
               null,
               ...Object.entries(CATEGORY_LABELS).map(([k, v]) => ({
                 key: k, label: v,
@@ -157,7 +170,7 @@ export default function ScanResults({ scanId, onNewScan }) {
               borderRadius: 'var(--radius)', padding: '20px 24px',
               fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--green)',
             }}>
-              ✓ No vulnerabilities in this category.
+              No cases were flagged for this filter.
             </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -205,7 +218,7 @@ function FindingRow({ finding, isOpen, onToggle }) {
         
         {finding.is_exploited
           ? <SeverityBadge severity={sev} />
-          : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--green)', border: '1px solid var(--green-dim)', padding: '2px 8px', borderRadius: 4 }}>BLOCKED</span>
+          : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--green)', border: '1px solid var(--green-dim)', padding: '2px 8px', borderRadius: 4 }}>NOT FLAGGED</span>
         }
         
         <span style={{ flex: 1, fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
