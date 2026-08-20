@@ -96,7 +96,7 @@ Select **PromptShield: Offline Full Stack** to run without credentials or extern
 - FastAPI at `http://127.0.0.1:8000`
 - Vite at `http://127.0.0.1:5173`
 
-The launch configuration sets `ALLOW_PRIVATE_TARGETS=true`, `JUDGE_PROVIDER=heuristic`, `DATABASE_PATH=promptshield-offline.db`, and empty Anthropic, OpenAI, Groq, and PromptShield credential variables. It deliberately does not load `backend/.env`.
+The launch configuration sets `ALLOW_PRIVATE_TARGETS=true`, `JUDGE_PROVIDER=heuristic`, `DATABASE_PATH=promptshield-offline.db`, and empty Anthropic, OpenAI, Groq, and PromptShield credential variables. Those process-environment values override the corresponding values from `backend/.env`; other settings may still be read from that file.
 
 Open `http://127.0.0.1:5173`, choose **load local fixture**, and start the prefilled one-family scan. Expected health values are `status=ok`, all three provider-configured flags `false`, `auth_enabled=false`, `allow_private_targets=true`, and `judge_provider=heuristic`:
 
@@ -256,8 +256,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the small-project branch, test, commi
 
 ## License
 
-MIT
-
----
-
-*Built by a 16-year-old who read the OWASP LLM Top 10 and thought “someone should automate this.”*
+[MIT](LICENSE)
