@@ -121,6 +121,58 @@ Backend tests use mock providers and temporary databases. They make no real prov
 
 No GitHub Actions workflow is currently checked in. If scan automation is added later, build request bodies with a JSON-aware encoder (for example, Python's `json` module or `jq --arg`); never interpolate an arbitrary system prompt directly into quoted shell JSON.
 
+## Local defensive source scan (MVP)
+
+The backend also includes an independent, local CLI that produces a normalized JSON report. It does not change the API, database, existing corpus score/grade, frontend, or HTML report.
+
+From the repository root:
+
+```powershell
+Push-Location backend
+.venv/Scripts/python.exe -m llm_security scan --source-root ../path-to-reviewed-source
+Pop-Location
+```
+
+The source root is always selected by the local operator. The deterministic scanner reads bounded UTF-8 `.py` files only and currently implements these selected checks:
+
+| Rule | Severity | Deterministic signal |
+|---|---|---|
+| `PS-LLM02-001` | high | A credential-looking literal is embedded in a recognized system-instruction value. |
+| `PS-LLM04-001` | medium | A recognized remote model/artifact load has no immutable revision or digest. |
+| `PS-LLM06-001` | medium | A recognized provider generation call has no explicit output-token bound. |
+| `PS-LLM10-001` | critical | Model output flows within one Python scope into `eval`, `exec`, `os.system`, or a shell-enabled subprocess. |
+
+These are conservative source patterns, not proof of exploitability. They are not a complete implementation of the OWASP Top 10, and the MVP does not analyze non-Python source, inter-procedural data flow, excessive agency, vector/embedding weaknesses, training data, Web Top 10 findings, or deployed infrastructure.
+
+An existing PromptShield `ScanResult` JSON can be merged into the same report. Only its exploited `AttackResult` entries are converted; its score and grade are not recalculated:
+
+```powershell
+Push-Location backend
+.venv/Scripts/python.exe -m llm_security scan `
+  --source-root ../path-to-reviewed-source `
+  --promptshield-json ../scan-result.json `
+  --output ../llm-security-report.json
+Pop-Location
+```
+
+Every normalized finding has `source`, `risk_id`, `title`, `severity`, `confidence`, `file`, `line`, `rule`, `description`, `remediation`, and `redacted_evidence`. Tool failures and source diagnostics are separate from findings and are excluded from severity/source counts. Output goes to stdout unless `--output` is explicit; the CLI does not use the repository's root `reports/` directory.
+
+### Optional local Promptfoo evaluation
+
+Promptfoo is optional and is not a frontend dependency. Install its CLI separately using the [official Promptfoo installation instructions](https://www.promptfoo.dev/docs/installation/) so `promptfoo` is available on `PATH`. Then start the repository's explicitly authorized fixture at `http://127.0.0.1:9000/chat` and run:
+
+```powershell
+Push-Location backend
+.venv/Scripts/python.exe -m llm_security scan `
+  --source-root . `
+  --promptfoo-local
+Pop-Location
+```
+
+This mode accepts no target URL, custom executable, config, provider, plugin, script, or extra CLI argument. It runs only the reviewed finite cases in `backend/llm_security/config/promptfoo.local.yaml`; it never runs Promptfoo test generation and never inherits provider credentials. Do not redirect or modify the fixture to reach a third-party system unless you have explicit authorization—the wrapper itself authorizes only the fixed loopback target.
+
+Missing Promptfoo, timeouts, nonzero exits, oversized/malformed/unsupported output, zero executed tests, and transport/evaluator failures are reported as structured tool errors, never vulnerabilities. A report with findings but no operational errors exits `0`; a report containing a Promptfoo operational error or invalid required input exits `2`. Raw Promptfoo output is deleted with its temporary working directory.
+
 ## Configuration
 
 `backend/.env.example` documents the supported settings. Important defaults include:
@@ -158,6 +210,7 @@ promptshield/
 │   ├── models.py         # Pydantic request/response models
 │   ├── database.py       # SQLite persistence
 │   ├── report.py         # Escaped HTML report generator
+│   ├── llm_security/     # Local normalized JSON security-scan CLI
 │   ├── attacks/          # Five YAML attack-family documents
 │   ├── tests/            # Offline backend regression tests and fixture target
 │   └── requirements.txt
